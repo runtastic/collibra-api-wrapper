@@ -10,8 +10,10 @@ import argparse
 from collibra.collibra_api import Collibra
 # in pycharm
 # from collibra_api import Collibra
-
 from collibra import __version__
+
+
+sep = " > "
 
 
 def load_json(fn):
@@ -99,18 +101,18 @@ def parse_fields_and_relations(fn_dqr_rel_temp, fn_de_temp, fn_de_rel_temp, fn_i
     connections = []
     for field, rule, cat in findall(tree, '', rule_key, cats, ''):
         source = top_level+cat
-        target = source+'.'+field
-        de.append({'Name': target, 'Description': field})
-        de_rel.append({'source': source, 'target': target})
+        target = source + "." + field
+        de.append({'Name': target.replace(".", sep), 'Description': field.replace(".", sep)})
+        de_rel.append({'source': source.replace(".", sep), 'target': target.replace(".", sep)})
         if rule is not None:
-            dqr_rel.append({'source': rule, 'target': target})
+            dqr_rel.append({'source': rule, 'target': target.replace(".", sep)})
         connections.append(source)
 
     # generate all containers and their relations
     containers = sorted(set(connections))
     names = []
     for c in containers:
-        indices = [i for i, x in enumerate(c) if x == '.']
+        indices = [i for i, x in enumerate(c) if x == "."]
         indices.append(len(c))
         for ind, j in enumerate(indices):
             parent = None
@@ -118,9 +120,9 @@ def parse_fields_and_relations(fn_dqr_rel_temp, fn_de_temp, fn_de_rel_temp, fn_i
                 parent = c[0:indices[ind-1]]
             name = c[0:j]
             if name not in names:
-                de.append({'Name': name, 'Description': name})
+                de.append({'Name': name.replace(".", sep), 'Description': name.replace(".", sep)})
                 if parent is not None:
-                    de_rel.append({'source': parent, 'target': name})
+                    de_rel.append({'source': parent.replace(".", sep), 'target': name.replace(".", sep)})
                 names.append(name)
 
     de_temp.update({'assets': de})
