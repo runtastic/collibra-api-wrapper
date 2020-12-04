@@ -1,7 +1,6 @@
 {
   "rt_community": "Runtastic",
-  "da_community": "Data Architecture",
   "source_domain": "Anonymization Rules",
-  "target_domain": "Physical Data Dictionary",
+  "target_domain": "Runtastic-BRONZE",
   "relation_type": ["Data Quality Rule", "governs", "Data Element"]
 }

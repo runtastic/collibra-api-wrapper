@@ -1,6 +1,5 @@
 {
   "rt_community": "Runtastic",
-  "da_community": "Data Architecture",
-  "domain": "Physical Data Dictionary",
+  "domain": "Runtastic-BRONZE",
   "asset_type": "Data Element"
 }
