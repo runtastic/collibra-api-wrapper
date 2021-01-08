@@ -6,10 +6,7 @@ import pprint
 import logging
 import argparse
 
-# from console
 from collibra.collibra_api import Collibra
-# in pycharm
-# from collibra_api import Collibra
 from collibra import __version__
 
 
