@@ -120,9 +120,8 @@ def parse_fields_and_relations(fn_dqr_rel_temp, fn_de_temp, fn_de_rel_temp, fn_i
             continue
 
         for cf in conditional_fields.keys():
-            if target == cf + "." + conditional_fields[cf][1][0]['target_field']:
+            if "conditional_operation" in conditional_fields[cf] and target == cf + "." + conditional_fields[cf][1][0]['target_field']:
                 rule = "conditional_operation"
-
         if not isinstance(rule, list):
             de.append({'Name': target.replace(".", sep), 'Description': field.replace(".", sep)})
             de_rel.append({'source': source.replace(".", sep), 'target': target.replace(".", sep)})
@@ -356,6 +355,6 @@ def run_de_and_relations():
     update_relations(collibra_conn, dqr_rel)
 
 if __name__ == "__main__":
-    run_dqr()
-    # run_de_and_relations()
+    # run_dqr()
+    run_de_and_relations()
 
