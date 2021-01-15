@@ -182,7 +182,7 @@ def update_relations(collibra_conn, relations):
             source_id = sources_on_collibra[relation['source']]
             target_id = targets_on_collibra[relation['target']]
         except KeyError:
-            print('Source and/or target asset not existing!')
+            print('Source ({}) and/or target ({}) asset not existing!'.format(relation['source'], relation['target']))
             continue
         if '{}/{}'.format(source_id, target_id) not in relations_on_collibra.keys():
             relation_dict = {"sourceId": source_id, "targetId": target_id}

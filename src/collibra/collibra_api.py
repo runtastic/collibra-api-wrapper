@@ -13,6 +13,7 @@ class Collibra:
         self.connection_params = {
               "headers": self.headers,
               "auth": HTTPBasicAuth(self.user_name, self.password)}
+        self.query_limit = 3000
 
     def __check_status_code(self, status_code, expected_status_code=200):
         """
@@ -82,7 +83,8 @@ class Collibra:
 
     def get_assets(self, domainID):
         query_dict = {
-            "domainId": domainID
+            "domainId": domainID,
+            "limit": self.query_limit
         }
         query_string = urlencode(query_dict)
         r = requests.get(f'{self.base_url}/assets?{query_string}', **self.connection_params)
@@ -199,6 +201,7 @@ class Collibra:
         """
         Returns a list of relations matching the request
         """
+        query_dict['limit'] = self.query_limit
         query_string = urlencode(query_dict)
         r = requests.get(f'{self.base_url}/relations?{query_string}', **self.connection_params)
         self.__check_status_code(r.status_code)
