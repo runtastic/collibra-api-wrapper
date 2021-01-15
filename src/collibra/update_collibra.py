@@ -35,7 +35,10 @@ def findall(obj, k_parent, k, cats, cat):
         keys = list(obj.keys())
         if k in keys:
             # reached an object with anonymization rule
-            yield k_parent, obj[k], cat
+            if "x-anonymize-args" in keys:
+                yield k_parent, [obj[k], obj["x-anonymize-args"]], cat
+            else:
+                yield k_parent, obj[k], cat
         if len(keys) == 1 and 'type' in keys:
             # reached a final object without anonymization rule
             yield k_parent, None, cat
@@ -93,17 +96,39 @@ def parse_fields_and_relations(fn_dqr_rel_temp, fn_de_temp, fn_de_rel_temp, fn_i
     de = []
     de_rel = []
     dqr_rel = []
+    put_to_null_fields = []
+    conditional_fields = {}
 
     tree = load_json(fn_input)
     connections = []
+    stop = False
     for field, rule, cat in findall(tree, '', rule_key, cats, ''):
         source = top_level+cat
         target = source + "." + field
-        de.append({'Name': target.replace(".", sep), 'Description': field.replace(".", sep)})
-        de_rel.append({'source': source.replace(".", sep), 'target': target.replace(".", sep)})
-        if rule is not None:
-            dqr_rel.append({'source': rule, 'target': target.replace(".", sep)})
-        connections.append(source)
+        if isinstance(rule, list):
+            conditional_fields[target] = rule
+        if rule == "put_to_null":
+            put_to_null_fields.append(target)
+
+        # if a parent attribute is set to null the children should not be included on collibra
+        for af in put_to_null_fields[::-1]:
+            if target.startswith(af+"."):
+                stop = True
+                break
+        if stop:
+            stop = False
+            continue
+
+        for cf in conditional_fields.keys():
+            if target == cf + "." + conditional_fields[cf][1][0]['target_field']:
+                rule = "conditional_operation"
+
+        if not isinstance(rule, list):
+            de.append({'Name': target.replace(".", sep), 'Description': field.replace(".", sep)})
+            de_rel.append({'source': source.replace(".", sep), 'target': target.replace(".", sep)})
+            if rule is not None:
+                dqr_rel.append({'source': rule, 'target': target.replace(".", sep)})
+            connections.append(source)
 
     # generate all containers and their relations
     containers = sorted(set(connections))
@@ -329,7 +354,6 @@ def run_de_and_relations():
     update_relations(collibra_conn, de_rel)
     print('Updating Relations between Data Quality Rules and Data Elements')
     update_relations(collibra_conn, dqr_rel)
-
 
 if __name__ == "__main__":
     run_dqr()
