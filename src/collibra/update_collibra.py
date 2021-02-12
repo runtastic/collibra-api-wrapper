@@ -163,8 +163,8 @@ def update_assets(collibra_conn, assets, check_attr=False):
     """
     asset_type_id = collibra_conn.get_asset_type_id(assets["asset_type"])
     rt_community_id = collibra_conn.get_community_id(assets["rt_community"])
-    # da_community_id = collibra_conn.get_community_id(assets["da_community"], parentId=rt_community_id)
-    domain_id = collibra_conn.get_domain_id(assets["domain"], communityId=rt_community_id)
+    da_community_id = collibra_conn.get_community_id(assets["da_community"], parentId=rt_community_id)
+    domain_id = collibra_conn.get_domain_id(assets["domain"], communityId=da_community_id)
 
     # get all assets inside given domain
     r = collibra_conn.get_assets(domain_id)
@@ -188,9 +188,9 @@ def update_relations(collibra_conn, relations):
     relations2create = list()
 
     rt_community = collibra_conn.get_community_id(relations["rt_community"])
-    # da_community = collibra_conn.get_community_id(relations["da_community"], parentId=rt_community)
-    source_domain = collibra_conn.get_domain_id(relations["source_domain"], communityId=rt_community)
-    target_domain = collibra_conn.get_domain_id(relations["target_domain"], communityId=rt_community)
+    da_community = collibra_conn.get_community_id(relations["da_community"], parentId=rt_community)
+    source_domain = collibra_conn.get_domain_id(relations["source_domain"], communityId=da_community)
+    target_domain = collibra_conn.get_domain_id(relations["target_domain"], communityId=da_community)
 
     relation_type = collibra_conn.get_available_relation_types(asset_filter=relations['relation_type'])
     relation_type_id = relation_type[0][4]

@@ -1,5 +1,6 @@
 {
   "rt_community": "Runtastic",
+  "da_community": "Technical",
   "source_domain": "Anonymization Rules",
   "target_domain": "Runtastic-BRONZE",
   "relation_type": ["Data Quality Rule", "governs", "Data Element"]

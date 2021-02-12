@@ -1,5 +1,6 @@
 {
   "rt_community": "Runtastic",
+  "da_community": "Technical",
   "source_domain": "Runtastic-BRONZE",
   "target_domain": "Runtastic-BRONZE",
   "relation_type": ["Data Element", "targets", "Data Element"]
