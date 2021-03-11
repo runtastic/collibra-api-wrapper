@@ -5,49 +5,21 @@ import json
 import pprint
 import logging
 import argparse
+import pandas as pd
+import re
 
 from collibra.collibra_api import Collibra
 from collibra import __version__
 
 
 sep = " > "
+xargs = "x-anonymize-args"
+xoperation = "x-anonymize-operation"
 
 
 def load_json(fn):
     with open(fn) as fi:
         return json.load(fi)
-
-
-def findall(obj, k_parent, k, cats, cat):
-    """
-    Recursive function to retrieve all relevant key-value pairs. Some keys may occur multiple times,
-    so the variable cat will hold the most meaningful parent variable for distinguishing
-    Args:
-        obj (dict, list): current json object to parse
-        k_parent (str): parent key of current json object (obj)
-        k (str): key to search for
-        cats (tuple): tuple of keys that can not act as a top level parent key (cat)
-        cat (str): top level parent key
-    Returns:
-        parent key, value of the searched key, top level parent key
-    """
-    if isinstance(obj, dict):
-        keys = list(obj.keys())
-        if k in keys:
-            # reached an object with anonymization rule
-            if "x-anonymize-args" in keys:
-                yield k_parent, [obj[k], obj["x-anonymize-args"]], cat
-            else:
-                yield k_parent, obj[k], cat
-        if len(keys) == 1 and 'type' in keys:
-            # reached a final object without anonymization rule
-            yield k_parent, None, cat
-        if k_parent not in cats and k_parent != '' and len(keys) > 1:
-            # define new parent object
-            cat = cat + "." + k_parent
-        for k1 in obj:
-            k_parent = k1
-            yield from findall(obj[k1], k_parent, k, cats, cat)
 
 
 def parse_dqr(fn_temp, fn_input, classname="AnonymizationOperators"):
@@ -73,8 +45,7 @@ def parse_dqr(fn_temp, fn_input, classname="AnonymizationOperators"):
     return dqr_temp
 
 
-def parse_fields_and_relations(fn_dqr_rel_temp, fn_de_temp, fn_de_rel_temp, fn_input,
-                               top_level, rule_key='x-anonymize-operation', cats=('properties')):
+def parse_fields_and_relations(fn_dqr_rel_temp, fn_de_temp, fn_de_rel_temp, fn_input, top_level):
     """
     Parse a json file and return updated dictionaries
     Args:
@@ -83,8 +54,6 @@ def parse_fields_and_relations(fn_dqr_rel_temp, fn_de_temp, fn_de_rel_temp, fn_i
         fn_de_rel_temp (str): path to template file (json) for relations between 2 Data Elements
         fn_input (str): path of json file containing fields and rules -> to be parsed
         top_level (str): key for top level data element
-        rule_key (str): relation type to search for
-        cats (tuple): keys in json file to ignore/skip
     Returns:
         de_temp (dict): updated Data Element template
         de_rel_temp (dict): updated template for relations between two Data Elementsu
@@ -93,58 +62,60 @@ def parse_fields_and_relations(fn_dqr_rel_temp, fn_de_temp, fn_de_rel_temp, fn_i
     de_temp = load_json(fn_de_temp)
     de_rel_temp = load_json(fn_de_rel_temp)
     dqr_rel_temp = load_json(fn_dqr_rel_temp)
-    de = []
+    de = [{"Name": top_level, "Description": top_level}]
     de_rel = []
     dqr_rel = []
-    put_to_null_fields = []
-    conditional_fields = {}
 
-    tree = load_json(fn_input)
-    connections = []
-    stop = False
-    for field, rule, cat in findall(tree, '', rule_key, cats, ''):
-        source = top_level+cat
-        target = source + "." + field
-        if isinstance(rule, list):
-            conditional_fields[target] = rule
-        if rule == "put_to_null":
-            put_to_null_fields.append(target)
+    js = load_json(fn_input)
+    js_flatten = pd.json_normalize(js, sep=sep)
+    js_flatten_dict = js_flatten.to_dict()
+    extracted_info = dict()
 
-        # if a parent attribute is set to null the children should not be included on collibra
-        for af in put_to_null_fields[::-1]:
-            if target.startswith(af+"."):
-                stop = True
-                break
-        if stop:
-            stop = False
+    skip_key = ""
+    for k in js_flatten_dict.keys():
+        if k == skip_key:
+            skip_key = ""
             continue
 
-        for cf in conditional_fields.keys():
-            if "conditional_operation" in conditional_fields[cf] and target == cf + "." + conditional_fields[cf][1][0]['target_field']:
-                rule = "conditional_operation"
-        if not isinstance(rule, list):
-            de.append({'Name': target.replace(".", sep), 'Description': field.replace(".", sep)})
-            de_rel.append({'source': source.replace(".", sep), 'target': target.replace(".", sep)})
-            if rule is not None:
-                dqr_rel.append({'source': rule, 'target': target.replace(".", sep)})
-            connections.append(source)
+        key = top_level + sep + re.sub(r'properties{}|items{}'.format(sep, sep), "", k).rsplit(sep, 1)[0]
+        field = k.split(sep)[-1]
 
-    # generate all containers and their relations
-    containers = sorted(set(connections))
-    names = []
-    for c in containers:
-        indices = [i for i, x in enumerate(c) if x == "."]
-        indices.append(len(c))
-        for ind, j in enumerate(indices):
-            parent = None
-            if ind > 0:
-                parent = c[0:indices[ind-1]]
-            name = c[0:j]
-            if name not in names:
-                de.append({'Name': name.replace(".", sep), 'Description': name.replace(".", sep)})
-                if parent is not None:
-                    de_rel.append({'source': parent.replace(".", sep), 'target': name.replace(".", sep)})
-                names.append(name)
+        if field == "additionalProperties":
+            continue
+
+        if (field == xoperation and js_flatten_dict[k][0] == "conditional_operation") or \
+                (field == xargs and
+                 js_flatten_dict[k.replace(xargs, xoperation)][0] == "conditional_operation"):
+            # specific for conditional operation, which is specified in the parent field
+            key = key + sep + js_flatten_dict[k.replace(xoperation, xargs)][0][0]["target_field"]
+            dictionary = extracted_info.get(key, dict())
+            dictionary[xoperation] = "conditional_operation"
+            dictionary[xargs] = js_flatten_dict[k.replace(xoperation, xargs)][0]
+
+            # required to also work if args are specified before operation
+            if field == xoperation:
+                skip_key = k.replace(xoperation, xargs)
+            else:
+                skip_key = k.replace(xargs, xoperation)
+        else:
+            # standard
+            dictionary = extracted_info.get(key, dict())
+            dictionary[field] = js_flatten_dict[k][0]
+        extracted_info[key] = dictionary
+
+    extracted_info.pop("type", None)
+    extracted_info.pop("additionalProperties", None)
+
+    for field in extracted_info.keys():
+        sp = field.rsplit(sep, 1)
+        description = sp[1]
+        de_rel.append({"source": sp[0], "target": field})
+        if xoperation in extracted_info[field].keys():
+            dqr_rel.append({"source": extracted_info[field][xoperation], "target": field})
+            description += f": Anonymization Rule={extracted_info[field][xoperation]}"
+            if xargs in extracted_info[field].keys():
+                description += f" (Arguments={extracted_info[field][xargs]})"
+        de.append({"Name": field, "Description": description})
 
     de_temp.update({'assets': de})
     de_rel_temp.update({'relations': de_rel})
@@ -357,4 +328,3 @@ def run_de_and_relations():
 if __name__ == "__main__":
     # run_dqr()
     run_de_and_relations()
-
