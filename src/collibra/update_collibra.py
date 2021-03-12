@@ -115,7 +115,10 @@ def parse_fields_and_relations(fn_dqr_rel_temp, fn_de_temp, fn_de_rel_temp, fn_i
             description += f": Anonymization Rule={extracted_info[field][xoperation]}"
             if xargs in extracted_info[field].keys():
                 description += f" (Arguments={extracted_info[field][xargs]})"
-        de.append({"Name": field, "Description": description})
+        data_type = '[%s]' % ', '.join(map(str, extracted_info[field]["type"]))
+        if any(dt in data_type for dt in ["number", "integer", "string", "boolean"]):
+            data_type = "{} --> [string, null]".format(data_type)
+        de.append({"Name": field, "Description": description, "Technical Data Type": data_type})
 
     de_temp.update({'assets': de})
     de_rel_temp.update({'relations': de_rel})
