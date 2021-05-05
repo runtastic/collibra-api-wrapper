@@ -87,7 +87,7 @@ def parse_fields_and_relations(fn_dqr_rel_temp, fn_de_temp, fn_de_rel_temp, fn_i
                 (field == xargs and
                  js_flatten_dict[k.replace(xargs, xoperation)][0] == "conditional_operation"):
             # specific for conditional operation, which is specified in the parent field
-            key = key + sep + js_flatten_dict[k.replace(xoperation, xargs)][0][0]["target_field"]
+            key = key + sep + js_flatten_dict[k.replace(xoperation, xargs)][0][0]["target_field"].replace(".", sep)
             dictionary = extracted_info.get(key, dict())
             dictionary[xoperation] = "conditional_operation"
             dictionary[xargs] = js_flatten_dict[k.replace(xoperation, xargs)][0]
