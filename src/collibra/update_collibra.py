@@ -71,10 +71,9 @@ def parse_fields_and_relations(fn_dqr_rel_temp, fn_de_temp, fn_de_rel_temp, fn_i
     js_flatten_dict = js_flatten.to_dict()
     extracted_info = dict()
 
-    skip_key = ""
     for k in js_flatten_dict.keys():
-        if k == skip_key:
-            skip_key = ""
+        # skip "x-anonymize-args"
+        if xargs in k:
             continue
 
         key = top_level + sep + re.sub(r'properties{}|items{}'.format(sep, sep), "", k).rsplit(sep, 1)[0]
@@ -83,20 +82,12 @@ def parse_fields_and_relations(fn_dqr_rel_temp, fn_de_temp, fn_de_rel_temp, fn_i
         if field == "additionalProperties":
             continue
 
-        if (field == xoperation and js_flatten_dict[k][0] == "conditional_operation") or \
-                (field == xargs and
-                 js_flatten_dict[k.replace(xargs, xoperation)][0] == "conditional_operation"):
-            # specific for conditional operation, which is specified in the parent field
+        if field == xoperation and js_flatten_dict[k][0] == "conditional_operation":
+            # specific for conditional operation, which is specified in a parent field
             key = key + sep + js_flatten_dict[k.replace(xoperation, xargs)][0][0]["target_field"].replace(".", sep)
             dictionary = extracted_info.get(key, dict())
             dictionary[xoperation] = "conditional_operation"
             dictionary[xargs] = js_flatten_dict[k.replace(xoperation, xargs)][0]
-
-            # required to also work if args are specified before operation
-            if field == xoperation:
-                skip_key = k.replace(xoperation, xargs)
-            else:
-                skip_key = k.replace(xargs, xoperation)
         else:
             # standard
             dictionary = extracted_info.get(key, dict())
@@ -106,6 +97,7 @@ def parse_fields_and_relations(fn_dqr_rel_temp, fn_de_temp, fn_de_rel_temp, fn_i
     extracted_info.pop("type", None)
     extracted_info.pop("additionalProperties", None)
 
+    # format data for collibra upload
     for field in extracted_info.keys():
         sp = field.rsplit(sep, 1)
         description = sp[1]
